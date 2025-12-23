@@ -28,9 +28,11 @@ class ClaudeClient:
             Generated response text
         """
         try:
+            logger.info(f"Generating AI response. System prompt length: {len(system_prompt)}")
             messages = [{"role": "system", "content": system_prompt}]
             
             if conversation_history:
+                logger.info(f"Including {len(conversation_history)} history messages")
                 messages.extend(conversation_history)
             
             messages.append({
@@ -46,9 +48,13 @@ class ClaudeClient:
                 fallbacks = [
                     "google/gemini-2.0-flash-exp:free",
                     "google/gemini-flash-1.5-8b:free",
-                    "google/gemini-flash-1.5:free",
+                    "meta-llama/llama-3.2-3b-instruct:free",
+                    "meta-llama/llama-3.1-8b-instruct:free",
+                    "qwen/qwen-2.5-72b-instruct:free",
                     "mistralai/mistral-7b-instruct:free",
-                    "qwen/qwen-2-7b-instruct:free"
+                    "microsoft/phi-3-medium-128k-instruct:free",
+                    "huggingfaceh4/zephyr-7b-beta:free",
+                    "google/gemini-flash-1.5:free"
                 ]
                 for fb in fallbacks:
                     if fb != self.model:
@@ -75,7 +81,10 @@ class ClaudeClient:
                     last_exception = e
                     if e.status_code == 429:
                         logger.warning(f"429 Status code for {model_name}, trying next...")
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(1)
+                        continue
+                    elif e.status_code == 404:
+                        logger.warning(f"Model {model_name} not found (404), trying next...")
                         continue
                     else:
                         logger.error(f"API Error {e.status_code} with model {model_name}: {e}")
@@ -83,6 +92,11 @@ class ClaudeClient:
                 except Exception as e:
                     last_exception = e
                     logger.error(f"Unexpected error with model {model_name}: {e}")
+                    # 404 usually means model is gone, so just continue
+                    if "404" in str(e):
+                        continue
+                    # For other errors, wait a bit
+                    await asyncio.sleep(1)
                     continue
             
             # If we're here, all models failed
@@ -188,11 +202,14 @@ class ClaudeClient:
         """
         from .prompts import PromptManager
         
+        logger.info("Starting general response generation")
         system_prompt = PromptManager.get_general_chat_prompt()
         
         # Add user profile to the message for context
         profile_context = PromptManager._format_user_data(user_data)
         full_user_message = f"ПРОФІЛЬ КОРИСТУВАЧА:\n{profile_context}\n\nПИТАННЯ: {user_message}"
+        
+        logger.info(f"Full user message prepared, length: {len(full_user_message)}")
         
         return await self.generate_response(
             system_prompt=system_prompt,
