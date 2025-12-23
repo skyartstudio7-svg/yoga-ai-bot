@@ -167,12 +167,12 @@ class PracticeHandler:
         """Handle practice completion - Step 1: Ask for rating"""
         if update.message.text == 'Відкласти на потім ⏰':
             keyboard = [
-                ['Нагадати через годину ⏰'],
-                ['Нагадати через 3 години ⏰']
+                ['Через 1 хвилину ⏱️', 'Через 30 хвилин ⏱️'],
+                ['Через 1 годину ⏰', 'Через 3 години ⏰']
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             await update.message.reply_text(
-                "Добре, практика збережена. Коли тобі нагадати? 🙏",
+                "Добре, практику збережено. Коли тобі нагадати? 🙏",
                 reply_markup=reply_markup
             )
             context.user_data['practice_flow'] = 'reminder_setting'
@@ -215,7 +215,21 @@ class PracticeHandler:
     async def handle_reminder(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle reminder setting"""
         choice = update.message.text
-        hours = 1 if "годину" in choice else 3
+        
+        minutes = 0
+        if "1 хвилину" in choice:
+            minutes = 1
+        elif "30 хвилин" in choice:
+            minutes = 30
+        elif "1 годину" in choice:
+            minutes = 60
+        elif "3 години" in choice:
+            minutes = 180
+        else:
+            # Fallback
+            minutes = 60
+            
+        practice_id = context.user_data.get('current_practice_id')
         
         # Schedule reminder
         if context.job_queue:
@@ -226,14 +240,16 @@ class PracticeHandler:
             for job in current_jobs:
                 job.schedule_removal()
             
-            logger.info(f"Scheduling postponed reminder for user {update.effective_user.id} in {hours} hours")
+            logger.info(f"Scheduling postponed reminder for user {update.effective_user.id} in {minutes} minutes")
             
+            # Store practice_id in job data
             context.job_queue.run_once(
                 self.send_reminder_job,
-                when=timedelta(hours=hours),
+                when=timedelta(minutes=minutes),
                 chat_id=update.effective_chat.id,
                 user_id=update.effective_user.id,
-                name=job_name
+                name=job_name,
+                data={'practice_id': practice_id}
             )
             
             keyboard = [
@@ -243,8 +259,9 @@ class PracticeHandler:
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=False, resize_keyboard=True)
             
+            time_str = f"{minutes} хв" if minutes < 60 else f"{minutes//60} год"
             await update.message.reply_text(
-                f"Записав! Нагадаю тобі про практику через {hours} {'годину' if hours == 1 else 'години'}. 🧘‍♂️",
+                f"Записав! Нагадаю тобі про практику через {time_str}. 🧘‍♂️",
                 reply_markup=reply_markup
             )
         else:
@@ -256,14 +273,61 @@ class PracticeHandler:
     async def send_reminder_job(self, context: ContextTypes.DEFAULT_TYPE):
         """Job to send reminder"""
         job = context.job
-        logger.info(f"Triggering postponed reminder for chat {job.chat_id}")
+        practice_id = job.data.get('practice_id') if job.data else None
+        
+        logger.info(f"Triggering postponed reminder for chat {job.chat_id}, practice_id: {practice_id}")
+        
+        keyboard = []
+        if practice_id:
+            keyboard.append([InlineKeyboardButton("Продовжити практику 🧘", callback_data=f"cont_prac_{practice_id}")])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+        
         try:
             await context.bot.send_message(
                 chat_id=job.chat_id,
-                text="Привіт! Час для твоєї практики йоги. Почнемо? 🙏\n\nВикористовуй /practice щоб обрати заняття."
+                text="Привіт! Час для твоєї практики йоги. Повернемось до заняття? 🙏",
+                reply_markup=reply_markup
             )
         except Exception as e:
             logger.error(f"Error sending postponed reminder: {e}")
+
+    async def handle_continue_practice(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle 'Continue Practice' callback"""
+        query = update.callback_query
+        await query.answer()
+        
+        practice_id = int(query.data.split('_')[2])
+        
+        with SessionLocal() as db:
+            practice = db.query(Practice).filter(Practice.id == practice_id).first()
+            if not practice:
+                await query.edit_message_text("На жаль, практику не знайдено. 😥")
+                return
+                
+            practice_text = practice.practice_content.get('content', 'Помилка завантаження')
+            
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"🧘 **Твоя збережена практика**\n\n{practice_text}",
+                parse_mode='Markdown'
+            )
+            
+            # Show completion buttons
+            keyboard = [
+                ['Завершив(ла) практику ✅'],
+                ['Відкласти на потім ⏰']
+            ]
+            reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+            
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="Коли завершиш практику, дай мені знати!",
+                reply_markup=reply_markup
+            )
+            
+            context.user_data['current_practice_id'] = practice_id
+            context.user_data.pop('practice_flow', None)
     
     async def handle_rating(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle practice rating and ask for thoughts"""

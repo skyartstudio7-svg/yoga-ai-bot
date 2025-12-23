@@ -302,14 +302,16 @@ def main():
     application.add_handler(CommandHandler("progress", progress_command))
     application.add_handler(CommandHandler("settings", settings_command))
     
-    # Progress pagination callback handler
-    async def progress_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Main callback query handler for pagination and postponed practices
+    async def global_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         if query.data.startswith('prog_'):
             page = int(query.data.split('_')[1])
             await progress_command(update, context, page=page)
+        elif query.data.startswith('cont_prac_'):
+            await practice_handler.handle_continue_practice(update, context)
             
-    application.add_handler(CallbackQueryHandler(progress_callback_handler))
+    application.add_handler(CallbackQueryHandler(global_callback_handler))
     
     # Message handler for practice flow and fallback
     async def handle_message(update, context):
