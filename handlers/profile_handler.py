@@ -62,7 +62,7 @@ class ProfileHandler:
             keyboard = [
                 ['Цілі 🎯', 'Рівень досвіду 📊'],
                 ['Здоров\'я 💊', 'Тривалість ⌛'],
-                ['Готово ✅']
+                ['Назад 🔙', 'Готово ✅']
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             
@@ -84,6 +84,10 @@ class ProfileHandler:
                 "Профіль збережено! 👍",
                 reply_markup=reply_markup
             )
+            return ConversationHandler.END
+        elif choice == 'Назад 🔙':
+            from bot import settings_command
+            await settings_command(update, context)
             return ConversationHandler.END
         elif choice == 'Цілі 🎯':
             await update.message.reply_text(

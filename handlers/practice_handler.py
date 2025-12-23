@@ -82,6 +82,14 @@ class PracticeHandler:
             "Створюю персоналізовану практику для тебе... ⏳"
         )
         
+        # Define main menu keyboard for error cases
+        main_menu_keyboard = [
+            ['Розпочати практику 🧘'],
+            ['Переглянути прогрес 📊', 'Мій профіль 👤'],
+            ['Налаштування ⚙️', 'Допомога 💡']
+        ]
+        error_reply_markup = ReplyKeyboardMarkup(main_menu_keyboard, one_time_keyboard=False, resize_keyboard=True)
+
         with SessionLocal() as db:
             db_user = db.query(User).filter(User.telegram_id == user.id).first()
             
@@ -144,12 +152,14 @@ class PracticeHandler:
             except asyncio.TimeoutError:
                 logger.error("Timeout generating practice")
                 await update.message.reply_text(
-                    "Вибач, створення практики займає більше часу, ніж зазвичай. Спробуй ще раз пізніше або обери інший тип практики. ⏳"
+                    "Вибач, створення практики займає більше часу, ніж зазвичай. Спробуй ще раз пізніше або обери інший тип практики. ⏳",
+                    reply_markup=error_reply_markup
                 )
             except Exception as e:
                 logger.error(f"Error generating practice: {e}", exc_info=True)
                 await update.message.reply_text(
-                    "Вибач, виникла помилка при створенні практики. Спробуй ще раз пізніше."
+                    "Вибач, виникла помилка при створенні практики. Спробуй ще раз пізніше.",
+                    reply_markup=error_reply_markup
                 )
     
     async def complete_practice(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
