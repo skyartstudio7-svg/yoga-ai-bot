@@ -51,8 +51,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 db_user.last_active = datetime.utcnow()
                 db.commit()
                 
-                await show_main_menu(update, context, f"Радий знову бачити тебе, {user.first_name}! 🙏")
-                logger.info(f"Existing user {user.id} started bot")
+                await show_main_menu(update, context)
+                logger.info(f"Existing user {user.id} accessed main menu via /start")
                 return ConversationHandler.END
             else:
                 # New user or user who didn't complete onboarding
