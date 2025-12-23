@@ -368,9 +368,19 @@ def main():
             ai_client = ClaudeClient()
             
             try:
+                # Fetch user data from DB for AI context
+                with SessionLocal() as db:
+                    db_user = db.query(User).filter(User.telegram_id == update.effective_user.id).first()
+                    user_profile = {
+                        'goals': db_user.goals if db_user else None,
+                        'experience_level': db_user.experience_level if db_user else None,
+                        'health_conditions': db_user.health_conditions if db_user else [],
+                        'available_duration': db_user.available_duration if db_user else None
+                    }
+
                 response = await ai_client.generate_general_response(
                     user_message=text,
-                    user_data=context.user_data
+                    user_data=user_profile
                 )
                 await update.message.reply_text(response)
             except Exception as e:

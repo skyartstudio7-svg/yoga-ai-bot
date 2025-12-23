@@ -181,7 +181,7 @@ class ClaudeClient:
         
         Args:
             user_message: User's message
-            user_data: User context data
+            user_data: User context data (profile)
             
         Returns:
             AI-generated response
@@ -190,9 +190,13 @@ class ClaudeClient:
         
         system_prompt = PromptManager.get_general_chat_prompt()
         
+        # Add user profile to the message for context
+        profile_context = PromptManager._format_user_data(user_data)
+        full_user_message = f"ПРОФІЛЬ КОРИСТУВАЧА:\n{profile_context}\n\nПИТАННЯ: {user_message}"
+        
         return await self.generate_response(
             system_prompt=system_prompt,
-            user_message=user_message
+            user_message=full_user_message
         )
     
     async def generate_summary(
