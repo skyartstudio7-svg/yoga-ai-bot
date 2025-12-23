@@ -1,0 +1,25 @@
+# Telegram Bot Framework
+python-telegram-bot==20.7
+
+# AI Integration (OpenRouter via OpenAI SDK)
+openai==1.58.1
+
+# Database
+SQLAlchemy==2.0.23
+alembic==1.13.1
+
+# Task Scheduling
+APScheduler==3.10.4
+
+# Caching (optional)
+redis==5.0.1
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2023.3
+
+# Logging
+colorlog==6.8.0
