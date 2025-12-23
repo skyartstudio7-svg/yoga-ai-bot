@@ -266,7 +266,7 @@ class PracticeHandler:
             logger.error(f"Error sending postponed reminder: {e}")
     
     async def handle_rating(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle practice rating and generate final summary"""
+        """Handle practice rating and ask for thoughts"""
         rating_map = {
             '⭐': 1,
             '⭐⭐': 2,
@@ -278,42 +278,38 @@ class PracticeHandler:
         rating = rating_map.get(update.message.text, 3)
         practice_id = context.user_data.get('current_practice_id')
         
-        await update.message.reply_text(f"Дякую за відгук! {'🌟' * rating}\nГенерую підсумок твоєї практики... ⏳")
+        with SessionLocal() as db:
+            practice = db.query(Practice).filter(Practice.id == practice_id).first() if practice_id else None
+            
+            if practice:
+                practice.rating = rating
+                db.commit()
+        
+        keyboard = [['Пропустити ⏭️']]
+        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+        
+        await update.message.reply_text(
+            "Дякую за оцінку! 🌟\n\nТепер запиши свої думки, інсайти або відчуття, які прийшли до тебе під час практики. Це допоможе тобі відстежувати свій стан у майбутньому. 📝",
+            reply_markup=reply_markup
+        )
+        
+        context.user_data['practice_flow'] = 'thoughts'
+
+    async def handle_thoughts(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle user thoughts and finalize practice"""
+        thoughts = update.message.text
+        if thoughts == 'Пропустити ⏭️':
+            thoughts = None
+            
+        practice_id = context.user_data.get('current_practice_id')
         
         with SessionLocal() as db:
-            user = update.effective_user
-            db_user = db.query(User).filter(User.telegram_id == user.id).first()
-            
-            if not practice_id and db_user:
-                # Fallback: find latest uncompleted practice
-                practice = db.query(Practice).filter(
-                    Practice.user_id == db_user.id,
-                    Practice.completed == False
-                ).order_by(Practice.created_at.desc()).first()
-                if practice:
-                    practice_id = practice.id
-
             practice = db.query(Practice).filter(Practice.id == practice_id).first() if practice_id else None
             
             if practice:
                 practice.completed = True
                 practice.completed_at = datetime.utcnow()
-                practice.rating = rating
-                
-                # Generate AI summary now
-                practice_content_str = str(practice.practice_content.get('content', ''))
-                try:
-                    summary = await self.ai_client.generate_summary(practice_content_str)
-                    if summary and len(summary.strip()) > 10:
-                        practice.feedback = summary # Store summary in feedback field
-                        
-                        await update.message.reply_text(
-                            f"📝 **Підсумок практики:**\n\n{summary}",
-                            parse_mode='Markdown'
-                        )
-                except Exception as e:
-                    logger.error(f"Error generating summary in handle_rating: {e}")
-                
+                practice.feedback = thoughts # Store user thoughts in feedback field
                 db.commit()
         
         keyboard = [
@@ -324,8 +320,8 @@ class PracticeHandler:
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=False, resize_keyboard=True)
         
         await update.message.reply_text(
-            f"Дякую за відгук! {'🌟' * rating}\n\n"
-            "Чудова робота! Продовжуй практикувати регулярно. 🙏",
+            "Чудово! Твою практику та відчуття збережено. ✅\n\n"
+            "Продовжуй практикувати регулярно. Намасте! 🙏",
             reply_markup=reply_markup
         )
         

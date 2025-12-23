@@ -75,10 +75,10 @@ async def progress_command(update: Update, context: ContextTypes.DEFAULT_TYPE, p
             
             emoji = "🧘" if p.practice_type == 'asana' else "🌬️" if p.practice_type == 'pranayama' else "🧘‍♀️"
             rating_stars = '⭐' * (p.rating or 0)
-            progress_text += f"{emoji} **{date_str}** ({p.duration} хв) {rating_stars}\n"
+            progress_text += f"{emoji} **{date_str}** — {p.duration} хв {rating_stars}\n"
             if p.feedback:
-                progress_text += f"_{p.feedback}_\n"
-            progress_text += "\n"
+                progress_text += f"💭 _{p.feedback}_\n"
+            progress_text += "───────────────\n"
             
         # Inline buttons for pagination
         buttons = []
@@ -356,6 +356,8 @@ def main():
             await practice_handler.handle_reminder(update, context)
         elif flow == 'rating':
             await practice_handler.handle_rating(update, context)
+        elif flow == 'thoughts':
+            await practice_handler.handle_thoughts(update, context)
         elif text in ['Завершив(ла) практику ✅', 'Відкласти на потім ⏰']:
             await practice_handler.complete_practice(update, context)
         elif text in ['Готово ✅', 'Так, почнімо! 🚀', 'Рівень досвіду 📊', 'Цілі 🎯', 'Здоров\'я 💊', 'Тривалість ⌛', 'Мій профіль 👤', 'Профіль 👤']:
