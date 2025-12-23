@@ -10,6 +10,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str = "Обери дію:"):
+    """Show the main menu keyboard"""
+    from telegram import ReplyKeyboardMarkup
+    keyboard = [
+        ['Розпочати практику 🧘'],
+        ['Переглянути прогрес 📊', 'Мій профіль 👤'],
+        ['Налаштування ⚙️', 'Допомога 💡']
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=False, resize_keyboard=True)
+    await update.message.reply_text(text, reply_markup=reply_markup)
+
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handle /start command
@@ -39,19 +51,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 db_user.last_active = datetime.utcnow()
                 db.commit()
                 
-                welcome_back_message = f"""
-Привіт знову, {user.first_name}! 🙏
-
-Радий бачити тебе! Готовий продовжити свою практику?
-"""
-                from telegram import ReplyKeyboardMarkup
-                keyboard = [
-                    ['Розпочати практику 🧘'],
-                    ['Переглянути прогрес 📊', 'Мій профіль 👤'],
-                    ['Налаштування ⚙️', 'Допомога 💡']
-                ]
-                reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=False, resize_keyboard=True)
-                await update.message.reply_text(welcome_back_message, reply_markup=reply_markup)
+                await show_main_menu(update, context, f"Радий знову бачити тебе, {user.first_name}! 🙏")
                 logger.info(f"Existing user {user.id} started bot")
                 return ConversationHandler.END
             else:

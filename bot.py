@@ -9,7 +9,7 @@ from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKey
 from telegram.ext import Application, CommandHandler, MessageHandler, ConversationHandler, CallbackQueryHandler, filters, ContextTypes
 from config import Config
 from database import SessionLocal, User, Practice, init_db
-from handlers import start_command, help_command, OnboardingHandler, PracticeHandler, ProfileHandler, RemindersHandler
+from handlers import start_command, help_command, show_main_menu, OnboardingHandler, PracticeHandler, ProfileHandler, RemindersHandler
 from handlers.onboarding_handler import O_GOALS, O_EXPERIENCE, O_HEALTH, O_DURATION, O_REMINDER_FREQ, O_REMINDER_TIME, O_CONFIRMATION
 from handlers.profile_handler import PROFILE_MENU, EDIT_GOALS, EDIT_EXPERIENCE, EDIT_HEALTH, EDIT_DURATION
 from handlers.reminders_handler import REMINDER_FREQ, REMINDER_TIME
@@ -168,8 +168,8 @@ def main():
     application = Application.builder().token(Config.TELEGRAM_BOT_TOKEN).post_init(post_init).build()    
     
     async def exit_and_start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """End conversation and run start command"""
-        await start_command(update, context)
+        """End conversation and return to main menu"""
+        await show_main_menu(update, context)
         return ConversationHandler.END
 
     async def exit_and_help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -319,7 +319,7 @@ def main():
         # 1. Handle Global Navigation Buttons first
         if text == 'Назад 🔙':
             context.user_data.pop('practice_flow', None)
-            await start_command(update, context)
+            await show_main_menu(update, context)
             return
         elif text == 'Налаштування ⚙️':
             context.user_data.pop('practice_flow', None)
@@ -361,7 +361,7 @@ def main():
         elif text in ['Готово ✅', 'Так, почнімо! 🚀', 'Рівень досвіду 📊', 'Цілі 🎯', 'Здоров\'я 💊', 'Тривалість ⌛', 'Мій профіль 👤', 'Профіль 👤']:
             # These are handled by conversation handlers, 
             # but if they fall through, just show the main menu
-            await start_command(update, context)
+            await show_main_menu(update, context)
         else:
             # 3. Fallback to AI Chat
             from ai import ClaudeClient
